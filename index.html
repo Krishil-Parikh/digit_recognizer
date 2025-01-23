@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digit Recognizer</title>
+    <style>
+        :root {
+            --bg-primary: #121212;
+            --text-primary: #e0e0e0;
+            --accent-color: #bb86fc;
+            --surface: #1e1e1e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            background-color: var(--surface);
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.2);
+            width: 500px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        #canvas {
+            background-color: var(--bg-primary);
+            border: 2px solid var(--accent-color);
+            border-radius: 8px;
+            cursor: crosshair;
+            transition: all 0.3s ease;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            gap: 20px;
+        }
+
+        .btn {
+            flex-grow: 1;
+            padding: 12px 20px;
+            background-color: var(--accent-color);
+            color: var(--bg-primary);
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(187,134,252,0.3);
+        }
+
+        #result {
+            margin-top: 20px;
+            font-size: 1.8rem;
+            color: var(--accent-color);
+            min-height: 50px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Digit Recognizer</h1>
+        <canvas id="canvas" width="400" height="400"></canvas>
+        <div class="controls">
+            <button id="clear" class="btn">Clear</button>
+            <button id="predict" class="btn">Predict</button>
+        </div>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        const clearBtn = document.getElementById("clear");
+        const predictBtn = document.getElementById("predict");
+        const result = document.getElementById("result");
+
+        let painting = false;
+
+        function startDrawing(e) {
+            painting = true;
+            draw(e);
+        }
+
+        function stopDrawing() {
+            painting = false;
+            ctx.beginPath();
+        }
+
+        function draw(e) {
+            if (!painting) return;
+            
+            ctx.lineWidth = 15;
+            ctx.lineCap = "round";
+            ctx.strokeStyle = "#bb86fc";
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        canvas.addEventListener("mousedown", startDrawing);
+        canvas.addEventListener("mouseup", stopDrawing);
+        canvas.addEventListener("mousemove", draw);
+        canvas.addEventListener("mouseout", stopDrawing);
+
+        clearBtn.addEventListener("click", () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            result.textContent = "";
+        });
+
+        predictBtn.addEventListener("click", async () => {
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append("file", blob, "digit.png");
+
+                try {
+                    const response = await fetch("http://127.0.0.1:5000/predict", {
+                        method: "POST",
+                        body: formData,
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        result.textContent = `Predicted: ${data.digit}`;
+                    } else {
+                        result.textContent = "Prediction failed";
+                    }
+                } catch (error) {
+                    result.textContent = "Server error";
+                }
+            }, "image/png");
+        });
+    </script>
+</body>
+</html>
